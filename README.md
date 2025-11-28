@@ -1,97 +1,161 @@
 # ERPNext Coolify Deployment
 
-Deploy ERPNext v15 on Coolify with Cloudflare Tunnel.
+Deploy ERPNext v15 (with Frappe Framework) on Coolify with Cloudflare Tunnel and Zero Trust protection.
 
-## Services
+## 🚀 Features
 
-| Service | Description |
-|---------|-------------|
-| erpnext-frontend | Nginx reverse proxy (port 8085) |
-| erpnext-backend | Gunicorn application server |
-| erpnext-websocket | Socket.io for real-time |
-| erpnext-queue-short | Background jobs (short queue) |
-| erpnext-queue-long | Background jobs (long queue) |
-| erpnext-scheduler | Scheduled tasks |
-| erpnext-db | MariaDB 10.6 database |
-| erpnext-redis-cache | Redis for caching |
-| erpnext-redis-queue | Redis for job queues |
+- **ERPNext v15** - Full-featured open-source ERP
+- **Frappe Framework** - Included as the base framework
+- **Coolify Ready** - Optimized docker-compose for Coolify deployment
+- **Secure** - No hardcoded passwords, all credentials via environment variables
+- **Cloudflare Compatible** - Works with Cloudflare Tunnel and Zero Trust
 
-## Deployment on Coolify
+## 📦 Services
 
-1. **Add new resource** → Docker Compose → Git Repository
-2. **Repository**: `https://github.com/piktpikt/erpnext-coolify-deployment`
+| Service | Description | Port |
+|---------|-------------|------|
+| erpnext-frontend | Nginx reverse proxy | 8085:8080 |
+| erpnext-backend | Gunicorn application server | - |
+| erpnext-websocket | Socket.io for real-time updates | - |
+| erpnext-queue-short | Background jobs (short queue) | - |
+| erpnext-queue-long | Background jobs (long queue) | - |
+| erpnext-scheduler | Scheduled tasks (cron) | - |
+| erpnext-db | MariaDB 10.6 database | - |
+| erpnext-redis-cache | Redis for caching | - |
+| erpnext-redis-queue | Redis for job queues | - |
+
+## 🛠️ Deployment on Coolify
+
+### Step 1: Add Resource
+
+1. Go to **Projects** → Your Project → **+ Add** → **Docker Compose**
+2. **Git Repository**: `https://github.com/piktpikt/erpnext-coolify-deployment`
 3. **Branch**: `main`
-4. **Deploy**
 
-## First Deployment
+### Step 2: Configure Environment Variables
 
-The first deployment takes **5-10 minutes** because:
-- `erpnext-configurator` sets up the bench configuration
-- `erpnext-create-site` creates the default site with ERPNext installed
+In Coolify → **Configuration** → **Environment Variables**, add:
 
-Check the logs of `erpnext-create-site` container to monitor progress.
+```env
+ERPNEXT_VERSION=v15
+ERPNEXT_ADMIN_PASSWORD=YourSecureAdminPassword123!
+DB_ROOT_PASSWORD=YourSecureDBRootPassword456!
+DB_USER_PASSWORD=YourSecureDBUserPassword789!
+```
 
-## Default Credentials
+### Step 3: Deploy
 
-| Type | Value |
-|------|-------|
-| **URL** | https://erp.flightpawr.com |
-| **Username** | Administrator |
-| **Password** | admin |
+Click **Deploy** and wait 5-10 minutes for the site to be created.
 
-⚠️ **Change the admin password immediately after first login!**
+### Step 4: Monitor Progress
 
-## Cloudflare Tunnel Configuration
+Check the logs of `erpnext-create-site` container:
+
+```bash
+docker logs -f $(docker ps -q --filter "name=erpnext-create-site")
+```
+
+Wait until you see:
+```
+Site frontend has been created
+```
+
+## 🔐 Environment Variables
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `ERPNEXT_VERSION` | ERPNext version (default: v15) | No |
+| `ERPNEXT_ADMIN_PASSWORD` | Administrator password | **Yes** |
+| `DB_ROOT_PASSWORD` | MariaDB root password | **Yes** |
+| `DB_USER_PASSWORD` | MariaDB erpnext user password | **Yes** |
+
+## 🌐 Cloudflare Tunnel Configuration
+
+### Public Hostname
 
 | Setting | Value |
 |---------|-------|
-| Hostname | erp.flightpawr.com |
-| Service | http://erpnext-frontend-XXXXX:8080 |
+| Hostname | `erp.yourdomain.com` |
+| Service | `http://erpnext-frontend-XXXXX:8080` |
 
-Note: Replace `XXXXX` with the actual container suffix from `docker ps`.
+> **Note**: Replace `XXXXX` with the actual container suffix from `docker ps --filter "name=erpnext-frontend"`.
 
-## Database Credentials
+### Zero Trust Application (Optional)
 
-| Parameter | Value |
-|-----------|-------|
-| Root Password | erpnext_db_root_2024 |
-| Database | erpnext |
-| User | erpnext |
-| User Password | erpnext_user_2024 |
+1. Go to **Cloudflare Zero Trust** → **Access** → **Applications**
+2. **Add Application** → **Self-hosted**
+3. **Application domain**: `erp.yourdomain.com`
+4. **Policy**: Allow specific emails or groups
 
-⚠️ **Change these passwords for production use!**
+## 🔑 Default Credentials
 
-## Customization
+| Type | Value |
+|------|-------|
+| **Username** | `Administrator` |
+| **Password** | Value of `ERPNEXT_ADMIN_PASSWORD` |
 
-### Change Admin Password
-Edit `docker-compose.yml`, find `erpnext-create-site` service and modify:
-```
---admin-password=YOUR_SECURE_PASSWORD
-```
+## 🔧 Troubleshooting
 
-### Change Database Passwords
-Edit `docker-compose.yml`:
-1. `erpnext-db` service: `MYSQL_ROOT_PASSWORD` and `MYSQL_PASSWORD`
-2. `erpnext-create-site` service: `--db-root-password`
+### Check all containers status
 
-## Troubleshooting
-
-### Site not accessible
 ```bash
-docker logs erpnext-create-site-XXXXX
+docker ps -a --filter "name=erpnext" --format "table {{.Names}}\t{{.Status}}"
+```
+
+### Site creation failed
+
+```bash
+docker logs $(docker ps -aq --filter "name=erpnext-create-site")
 ```
 
 ### Database connection issues
+
 ```bash
-docker logs erpnext-db-XXXXX
+docker logs $(docker ps -q --filter "name=erpnext-db")
 ```
 
-### Check all containers
+### Reset and redeploy (clean install)
+
 ```bash
-docker ps --filter "name=erpnext"
+# Stop and remove all containers
+docker stop $(docker ps -q --filter "name=erpnext")
+docker rm $(docker ps -aq --filter "name=erpnext")
+
+# Remove all volumes
+docker volume ls | grep erpnext | awk '{print $2}' | xargs docker volume rm
+
+# Then Redeploy in Coolify
 ```
 
-## Based on
+### Container name changes after redeploy
 
-- [Frappe Docker](https://github.com/frappe/frappe_docker)
-- [ERPNext](https://erpnext.com/)
+Coolify generates new container names on each deployment. Update your Cloudflare Tunnel configuration with the new container name:
+
+```bash
+docker ps --filter "name=erpnext-frontend" --format "{{.Names}}"
+```
+
+## 📚 What's Included
+
+The `frappe/erpnext:v15` image includes:
+
+- ✅ **Frappe Framework** - Low-code web framework
+- ✅ **ERPNext** - Full ERP suite (Accounting, HR, CRM, Manufacturing, etc.)
+- ✅ **Payments** - Payment gateway integrations
+
+## 🔗 Useful Links
+
+- [ERPNext Documentation](https://docs.erpnext.com/)
+- [Frappe Framework Documentation](https://frappeframework.com/docs)
+- [Frappe Docker Repository](https://github.com/frappe/frappe_docker)
+- [Coolify Documentation](https://coolify.io/docs)
+
+## 📄 License
+
+This deployment configuration is open source. ERPNext and Frappe are licensed under GNU GPLv3.
+
+## 🙏 Credits
+
+- [Frappe Technologies](https://frappe.io/) - ERPNext & Frappe Framework
+- [Coolify](https://coolify.io/) - Self-hosting platform
+- Based on [frappe_docker](https://github.com/frappe/frappe_docker)
